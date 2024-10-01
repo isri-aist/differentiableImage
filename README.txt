@@ -22,3 +22,11 @@
 Options:
 -isEqui true: if the image considered is equirectangular
 
+5. plot residuals function of sigmas with gnuplot
+
+shell: paste sigma.txt residuals.txt > sr.txt
+
+gnuplot: 
+plot 'sr.txt' using 1:2 with lines title "photometric reconstruction error"
+set logscale y
+replot
