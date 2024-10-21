@@ -1,0 +1,19 @@
+include("${CMAKE_CURRENT_LIST_DIR}/@PROJECT_NAME@Targets.cmake")
+
+set(@PROJECT_NAME@_INCLUDE_DIRS "@CMAKE_INSTALL_PREFIX@/include")
+include_directories("@CMAKE_INSTALL_PREFIX@/include")
+
+set(@PROJECT_NAME@_LIB_DIR "@CMAKE_INSTALL_PREFIX@/lib")
+link_directories("@CMAKE_INSTALL_PREFIX@/lib")
+
+set(@PROJECT_NAME@_LIBS @REQUIRED_LIBRARIES@ @PROJECT_NAME@)
+
+set(@PROJECT_NAME@_FOUND TRUE)
+set(@PROJECT_NAME@_VERSION @PROJECT_VERSION@)
+set(@PROJECT_NAME@_VERSION_MAJOR @PROJECT_VERSION_MAJOR@)
+set(@PROJECT_NAME@_VERSION_MINOR @PROJECT_VERSION_MINOR@)
+set(@PROJECT_NAME@_VERSION_PATCH @PROJECT_VERSION_PATCH@)
+
+find_package(Ceres REQUIRED)
+find_package(PER REQUIRED per_core per_acquisition_representation per_io per_features per_sensor_pose_estimation per_estimation)
+find_package(VISP REQUIRED  visp_core visp_robot visp_visual_features visp_io visp_gui visp_vs visp_vision)
