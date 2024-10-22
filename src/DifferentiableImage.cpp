@@ -238,6 +238,7 @@ void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector
   costs = v_cost;
 }
 
+/*
 double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs)
 {
   double e_max, e_min, val_95;
@@ -252,6 +253,35 @@ double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigma
     if((costs[i] <= val_95 && costs[i + 1] >= val_95) || (costs[i] >= val_95 && costs[i + 1] <= val_95))
     {
       double t = (val_95 - costs[i]) / (costs[i + 1] - costs[i]);
+      interpolated_sigma =
+          sigmas[i] + t * (sigmas[i + 1] - sigmas[i]); // interpolate to find lambda_g at 95% of the cost
+      break;
+    }
+  }
+  std::cout << "Interpolated sigma for val_95: " << interpolated_sigma << std::endl;
+
+  return interpolated_sigma;
+}
+*/
+
+double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs)
+{
+  double e_max, e_min, val_95;
+  std::vector<double> invCosts;
+  invCosts.reserve(costs.size());
+
+  for(size_t i = 0; i < costs.size() - 1; ++i)
+    invCosts.push_back(1./costs[i]);
+
+  e_max = *(--(invCosts.end()));
+  val_95 = 0.95 * e_max; // calculate the 95% of the cost (epsilon)
+  std::cout << "inv val_95: " << val_95 << " (val_95 " << 1./val_95 << ")" << std::endl;
+
+  for(size_t i = 0; i < invCosts.size() - 1; ++i)
+  {
+    if((invCosts[i] <= val_95 && invCosts[i + 1] >= val_95) || (invCosts[i] >= val_95 && invCosts[i + 1] <= val_95))
+    {
+      double t = (val_95 - invCosts[i]) / (invCosts[i + 1] - invCosts[i]);
       interpolated_sigma =
           sigmas[i] + t * (sigmas[i + 1] - sigmas[i]); // interpolate to find lambda_g at 95% of the cost
       break;
