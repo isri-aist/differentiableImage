@@ -77,11 +77,12 @@ void DifferentiableImage::init(const std::string & path_des,
     return;
   }
 
-  nbKernels = 40;
+  nbKernels = 10;
   sigmaMin = 0.5 / 3.0; // within a pixel
   sigmaMax = I_des.getWidth() / 6.0; // desired_Gray.cols/6.0 ; //the whole image
   sigma = sigmaMin;
   sigmaStep = (sigmaMax - sigmaMin) / nbKernels;
+  sigmaStep /= pow(2, nbKernels-3);
 
   v_cost.reserve(nbKernels);
   v_sigma.reserve(nbKernels);
@@ -95,6 +96,13 @@ void DifferentiableImage::init(const std::string & path_des,
 }
 
 double DifferentiableImage::compute()
+{
+  std::vector<double> sigmas, costs;
+  computeCosts(sigmas, costs);
+  return computeInterpolatedSigma(sigmas, costs);
+}
+
+void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector<double> & costs)
 {
   for(unsigned int kernel = 0; kernel < nbKernels; kernel++, sigma += sigmaStep)
   {
@@ -206,27 +214,6 @@ double DifferentiableImage::compute()
     dCostSigma = cost - v_cost.back();
     std::cout << "photometric cost: " << cost << " and it derivative w.r.t. sigma: " << dCostSigma << std::endl;
 
-    double e_max, e_min, val_95;
-    if(kernel == 0) { e_max = cost; }
-    if(kernel == nbKernels - 1)
-    {
-      e_min = cost;
-      val_95 = e_min + 0.05 * (e_max - e_min); // calculate the 95% of the cost (epsilon)
-      std::cout << "val_95: " << val_95 << std::endl;
-
-      for(size_t i = 0; i < v_cost.size() - 1; ++i)
-      {
-        if((v_cost[i] <= val_95 && v_cost[i + 1] >= val_95) || (v_cost[i] >= val_95 && v_cost[i + 1] <= val_95))
-        {
-          double t = (val_95 - v_cost[i]) / (v_cost[i + 1] - v_cost[i]);
-          interpolated_sigma =
-              v_sigma[i] + t * (v_sigma[i + 1] - v_sigma[i]); // interpolate to find lambda_g at 95% of the cost
-          break;
-        }
-      }
-      std::cout << "Interpolated sigma for val_95: " << interpolated_sigma << std::endl;
-    }
-
     if(enableDisplay)
     {
       vpDisplay::display(upsampled_subsampled_I_to_upsub);
@@ -243,7 +230,34 @@ double DifferentiableImage::compute()
 
     v_sigma.push_back(sigma);
     v_cost.push_back(cost);
+
+    sigmaStep *= 2;
   }
+
+  sigmas = v_sigma;
+  costs = v_cost;
+}
+
+double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs)
+{
+  double e_max, e_min, val_95;
+  e_max = *(costs.begin());
+
+  e_min = *(costs.end());
+  val_95 = e_min + 0.05 * (e_max - e_min); // calculate the 95% of the cost (epsilon)
+  std::cout << "val_95: " << val_95 << std::endl;
+
+  for(size_t i = 0; i < costs.size() - 1; ++i)
+  {
+    if((costs[i] <= val_95 && costs[i + 1] >= val_95) || (costs[i] >= val_95 && costs[i + 1] <= val_95))
+    {
+      double t = (val_95 - costs[i]) / (costs[i + 1] - costs[i]);
+      interpolated_sigma =
+          sigmas[i] + t * (sigmas[i + 1] - sigmas[i]); // interpolate to find lambda_g at 95% of the cost
+      break;
+    }
+  }
+  std::cout << "Interpolated sigma for val_95: " << interpolated_sigma << std::endl;
 
   return interpolated_sigma;
 }

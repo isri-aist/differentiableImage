@@ -32,10 +32,14 @@ public:
             bool enable_display = true,
             const std::string & mask = "");
   double compute();
+  void computeCosts(std::vector<double> & sigmas, std::vector<double> & costs);
+  double computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs);
 
 private:
   vpImage<unsigned char> I_des;
   vpImage<unsigned char> I_cur;
+  vpImage<unsigned char> I_desDual;
+  vpImage<unsigned char> I_curDual;
   vpImage<unsigned char> I_mask;
   bool hasMask;
   bool enableDisplay;
@@ -74,4 +78,5 @@ private:
   // Camera
   prSensorModel * _sensor;
   prCameraModel * _camera;
+  
 };
