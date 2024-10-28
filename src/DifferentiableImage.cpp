@@ -204,6 +204,8 @@ void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector
 
           nbPix++;
         }
+        else
+          upsampled_subsampled_I_to_upsub[v][u] = 127;
       }
     }
 
