@@ -27,6 +27,12 @@ public:
   DifferentiableImage() = default;
   ~DifferentiableImage() = default;
 
+  double start(const std::string & path_des,
+               const std::string & path_cur,
+               const std::string & mask = "",
+               const std::string & path_des_dual = "",
+               const std::string & path_cur_dual = "",
+               bool enable_display = true);
   void init(const std::string & path_des,
             const std::string & path_cur,
             bool enable_display = true,
@@ -65,18 +71,16 @@ private:
   double sigmaMax; // desired_Gray.cols/6.0 ; //the whole image
   double sigma;
   double sigmaStep;
+  double r;
 
   double dCostSigma;
   double interpolated_sigma;
 
-  std::vector<double> v_cost;
-  std::vector<double> v_sigma;
-
+  std::vector<double> v_sigma, v_cost, v_sigmaDual, v_costDual;
   std::ostringstream s;
   std::string filename;
 
   // Camera
   prSensorModel * _sensor;
   prCameraModel * _camera;
-  
 };
