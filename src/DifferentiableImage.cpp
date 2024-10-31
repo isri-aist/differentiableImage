@@ -1,6 +1,40 @@
 #include <DifferentiableImage/DifferentiableImage.h>
 #include <per/core/prOmni.h>
 
+double DifferentiableImage::start(const std::string & path_des,
+                                  const std::string & path_cur,
+                                  const std::string & mask,
+                                  const std::string & path_des_dual,
+                                  const std::string & path_cur_dual,
+                                  bool enable_display)
+{
+  double lambda_result;
+  DifferentiableImage diff_image;
+  DifferentiableImage diff_imageDual;
+  std::vector<double> v_sigma, v_cost, v_sigmaDual, v_costDual;
+
+  diff_image.init(path_des, path_cur, enable_display, mask);
+
+  if(!path_des_dual.empty())
+  {
+    diff_image.computeCosts(v_sigma, v_cost);
+
+    diff_imageDual.init(path_des_dual, path_cur_dual, enable_display, mask);
+    diff_imageDual.computeCosts(v_sigmaDual, v_costDual);
+
+    std::vector<double>::iterator it_s = v_sigma.begin();
+    std::vector<double>::iterator it_c = v_cost.begin();
+    std::vector<double>::iterator it_cD = v_costDual.begin();
+    for(; it_s != v_sigma.end(); it_s++, it_c++, it_cD++) *it_c = (*it_c + *it_cD) * 0.5;
+
+    lambda_result = diff_imageDual.computeInterpolatedSigma(v_sigma, v_cost);
+  }
+  else { lambda_result = diff_image.compute(); }
+
+  std::cout << "Computed lambda is : " << lambda_result << std::endl;
+  return lambda_result;
+}
+
 void DifferentiableImage::init(const std::string & path_des,
                                const std::string & path_cur,
                                bool enable_display,
@@ -78,21 +112,21 @@ void DifferentiableImage::init(const std::string & path_des,
   }
 
   nbKernels = 10;
-  sigmaMin = 0.5 / 3.0; // within a pixel
-  sigmaMax = I_des.getWidth() / 6.0; // desired_Gray.cols/6.0 ; //the whole image
+  sigmaMin = 0.33; // 0.5 / 3.0; // within a pixel
+  sigmaMax = 8; // I_des.getWidth() / 6.0; // desired_Gray.cols/6.0 ; //the whole image
   sigma = sigmaMin;
   sigmaStep = (sigmaMax - sigmaMin) / nbKernels;
-  sigmaStep /= pow(2, nbKernels-3);
+  // sigmaStep /= pow(2, nbKernels-3);
+  r = pow(sigmaMax / sigmaMin, 1.0 / (nbKernels - 1)); // common ratio for geometric sigma sampling
 
+  v_cost = {};
+  v_sigma = {};
   v_cost.reserve(nbKernels);
   v_sigma.reserve(nbKernels);
 
   // Create Camera
   _sensor = new prPerspective();
   _camera = (prPerspective *)_sensor;
-
-  // _sensor = new prOmni();
-  // _camera = (prOmni *)_sensor;
 }
 
 double DifferentiableImage::compute()
@@ -104,8 +138,9 @@ double DifferentiableImage::compute()
 
 void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector<double> & costs)
 {
-  for(unsigned int kernel = 0; kernel < nbKernels; kernel++, sigma += sigmaStep)
+  for(unsigned int kernel = 0; kernel < nbKernels; kernel++) //, sigma += sigmaStep)
   {
+    sigma = sigmaMin * pow(r, kernel);
     // prepare the desired image
     prRegularlySampledCPImage<unsigned char> IP_des(I_des.getHeight(), I_des.getWidth());
 
@@ -152,7 +187,7 @@ void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector
     vpImage<float> PGM_cur_f(I_cur.getHeight(), I_cur.getWidth());
 
     IP_cur.setInterpType(prInterpType::IMAGEPLANE_BILINEAR);
-    std::cout << "kernel: " << kernel << std::endl << "sigma: " << sigma << std::endl;
+    std::cout << "-------------kernel: " << kernel << std::endl << "sigma: " << sigma << std::endl;
     std::cout << "build cur" << std::endl;
     if(hasMask)
       IP_cur.buildFrom(I_cur, _camera, &I_mask);
@@ -233,63 +268,29 @@ void DifferentiableImage::computeCosts(std::vector<double> & sigmas, std::vector
     v_sigma.push_back(sigma);
     v_cost.push_back(cost);
 
-    sigmaStep *= 2;
+    // sigmaStep *= 2;
   }
 
   sigmas = v_sigma;
   costs = v_cost;
 }
 
-/*
 double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs)
 {
-  double e_max, e_min, val_95;
-  e_max = *(costs.begin());
 
-  e_min = *(costs.end());
-  val_95 = e_min + 0.05 * (e_max - e_min); // calculate the 95% of the cost (epsilon)
-  std::cout << "val_95: " << val_95 << std::endl;
+  double epsilon_treshold = 2.76125;
 
-  for(size_t i = 0; i < costs.size() - 1; ++i)
+  for(size_t i = 0; i < v_cost.size() - 1; ++i)
   {
-    if((costs[i] <= val_95 && costs[i + 1] >= val_95) || (costs[i] >= val_95 && costs[i + 1] <= val_95))
+    if((v_cost[i] <= epsilon_treshold && v_cost[i + 1] >= epsilon_treshold)
+       || (v_cost[i] >= epsilon_treshold && v_cost[i + 1] <= epsilon_treshold))
     {
-      double t = (val_95 - costs[i]) / (costs[i + 1] - costs[i]);
-      interpolated_sigma =
-          sigmas[i] + t * (sigmas[i + 1] - sigmas[i]); // interpolate to find lambda_g at 95% of the cost
+      double t = (epsilon_treshold - v_cost[i]) / (v_cost[i + 1] - v_cost[i]);
+      interpolated_sigma = v_sigma[i] + t * (v_sigma[i + 1] - v_sigma[i]);
       break;
     }
   }
-  std::cout << "Interpolated sigma for val_95: " << interpolated_sigma << std::endl;
-
-  return interpolated_sigma;
-}
-*/
-
-double DifferentiableImage::computeInterpolatedSigma(std::vector<double> & sigmas, std::vector<double> & costs)
-{
-  double e_max, e_min, val_95;
-  std::vector<double> invCosts;
-  invCosts.reserve(costs.size());
-
-  for(size_t i = 0; i < costs.size() - 1; ++i)
-    invCosts.push_back(1./costs[i]);
-
-  e_max = *(--(invCosts.end()));
-  val_95 = 0.95 * e_max; // calculate the 95% of the cost (epsilon)
-  std::cout << "inv val_95: " << val_95 << " (val_95 " << 1./val_95 << ")" << std::endl;
-
-  for(size_t i = 0; i < invCosts.size() - 1; ++i)
-  {
-    if((invCosts[i] <= val_95 && invCosts[i + 1] >= val_95) || (invCosts[i] >= val_95 && invCosts[i + 1] <= val_95))
-    {
-      double t = (val_95 - invCosts[i]) / (invCosts[i + 1] - invCosts[i]);
-      interpolated_sigma =
-          sigmas[i] + t * (sigmas[i + 1] - sigmas[i]); // interpolate to find lambda_g at 95% of the cost
-      break;
-    }
-  }
-  std::cout << "Interpolated sigma for val_95: " << interpolated_sigma << std::endl;
-
+  std::cout << " .................Interpolated sigma for treshold of " << epsilon_treshold << " is "
+            << interpolated_sigma << std::endl;
   return interpolated_sigma;
 }

@@ -13,33 +13,17 @@ Computes the cubic interpolation reconstruction of an subsampled image function 
 
 ## Usage
 
-- Create a new directory named build at the same level of differentiableImage directory
-- Use cmake to fill the build directory :
+- To compile use:
      ```bash
+     mkdir build 
      cd build
-     cmake .. -DCMAKE_BUILD_TYPE=Release 
-     ```
-- Open the project or use the make command in the latter directory to build the exe file 
-     ```bash
+     cmake .. -DCMAKE_BUILD_TYPE=Release
      make 
-     sudo make install
+     sudo make install 
      ```
-- Run the programs from the command line from the differentiableImage parent directory, with arguments such as:
+
+- Use as library or run the program from the command line in the build directory:
 
 ```bash
-./DifferentiableImageStandalone -desired {path_des} -current {path_cur}  {[optinals] --display=false -mask mask}
+./DifferentiableImageStandalone -desired {path_des} -current {path_cur}  {[optinals]-desiredDual {path_des_dual} -currentDual {path_cur_dual} -mask {path_mask} -display=0}
 ```
-
-- Plot residuals function of sigmas with gnuplot
-```
-shell: paste sigma.txt residuals.txt > sr.txt
-```
-
-gnuplot: 
-
-plot 'sr.txt' using 1:2 with lines title "photometric reconstruction error", [0:30] 1 lc rgb "#FF0000" lw 2 title "1 diff intensity error", [0:30] 0.5 lc rgb "#00FF00" lw 2 title "0.5 diff intensity error"
-set xrange [0:30]
-set yrange [0:20]
-replot
-
-#set logscale y
